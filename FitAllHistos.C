@@ -12,10 +12,10 @@
 void FitAllHistos()
 // first of all we load the file and we create the output file where we will save all the results of the fits and the graphs
 {
-    TFile *fileIn = new TFile("/Users/Utente/Desktop/run_020.root", "READ");
+    TFile *fileIn = new TFile("/Users/Utente/Desktop/run_031.root", "READ");
     if (!fileIn || fileIn->IsZombie())
     {
-        std::cerr << "ERRORE: Impossibile aprire il file di input run_020.root" << std::endl;
+        std::cerr << "ERRORE: Impossibile aprire il file di input run_031.root" << std::endl;
         return;
     }
 
@@ -30,12 +30,19 @@ void FitAllHistos()
     TLegend *leg_good = new TLegend(0.1, 0.1, 0.3, 0.9);
     TLegend *leg_bad = new TLegend(0.1, 0.1, 0.3, 0.9);
 
+    std::vector<double> slope; // <-- vector to store the slope(p1) values
+
+    TH1D *h_P1 = new TH1D("h_P1", "Distribution of Gain Slopes (p1)", 100, 100, 400);
+
+    double slopeMin = 220.0; // this values depends on the slopes so when we have a final range we change them, i've fixed the values from a poateriori analysis of thje graph
+    double slopeMax = 280.0;
+
     // Since we want to read all the histograms from the 64 channels we create a loop to read and fit all of the data.
     for (int i_sipm = 64; i_sipm <= 127; ++i_sipm)
     {
         TString histoName = Form("charge_isipm%d", i_sipm); // we create the name of the histogram to read, in this way we can read all the histograms in a loop without writing 64 times the name of the histogram
         TH1D *h = (TH1D *)fileIn->Get(histoName);           // we read the histogram, if the histogram is not found we print a warning and we skip to the next one
-
+        // slope = 0;
         if (!h)
         {
             std::cerr << "Warning: Istogramma '" << histoName << "' non trovato. Salto al prossimo." << std::endl;
@@ -45,9 +52,9 @@ void FitAllHistos()
         h->Rebin(4); // We rebin the histogram to have less bins and a smoother distribution for the fit, this is important because the fit can be very sensitive to the noise in the histogram and with too many bins we can have a lot of noise that can affect the fit
                      // now we define TSpectrum to find the peaks, we set a high number of peaks to find because we want to be sure to find all the peaks, then we will select only the first 5 peaks for the fit because they are the most important for the gain calculation, we need to rember that each peak corresponds to a photon electron
         TSpectrum *spec = new TSpectrum(50);
-        int nPeaks = spec->Search(h, 15, "goff", 0.001); // the search function has for parameteres, h is the number of histogram, 15 is the sigma of the peaks, "goff" is the option to not draw the peaks on the histogram and 0.001 is the threshold for finding the peaks, this means that we will find only the peaks that are higher than 0.1% of the maximum value of the histogram
+        int nPeaks = spec->Search(h, 15, " ", 0.007); // the search function has for parameteres, h is the number of histogram, 15 is the sigma of the peaks, "goff" is the option to not draw the peaks on the histogram and 0.001 is the threshold for finding the peaks, this means that we will find only the peaks that are higher than 0.1% of the maximum value of the histogram
 
-        if (nPeaks < 2) // if we find less than 2 peaks we print a warning and we skip to the next histogram because we need at least 2 peaks to calculate the gain
+        if (nPeaks < 1) // if we find less than 2 peaks we print a warning and we skip to the next histogram because we need at least 2 peaks to calculate the gain
         {
             std::cerr << "Warning: TSpectrum non ha trovato abbastanza picchi in " << histoName << std::endl;
             delete spec;
@@ -85,7 +92,7 @@ void FitAllHistos()
             fitFunc->SetParameter(2, sigma_guess);
             fitFunc->SetLineColor(kPink + 10); // Set the color of the fit function to a light pink for better visibility
 
-            h->Fit(fitFunc, "RQ+"); // R stands for Range of the defined fit, Q stands for quiet mode to avoid printing the fit results on the console and + stands for to add the fit function to the list of functions of the histogram without deleting the previous ones, this is important because we want to fit all the peaks and we want to keep all the fit functions on the histogram for visualization
+            h->Fit(fitFunc, "RQ0"); // R stands for Range of the defined fit, Q stands for quiet mode to avoid printing the fit results on the console and + stands for to add the fit function to the list of functions of the histogram without deleting the previous ones, this is important because we want to fit all the peaks and we want to keep all the fit functions on the histogram for visualization
 
             means.push_back(fitFunc->GetParameter(1)); // we save the mean value of the fit
             meanErrors.push_back(fitFunc->GetParError(1));
@@ -105,10 +112,15 @@ void FitAllHistos()
             graph->SetName(graphName);
             graph->SetTitle(Form("SiPM %d", i_sipm));
             graph->SetMarkerStyle(21); // the 21 is for a marker with a small full star
-            // this int assignes a different color to each graph based on the SIMP number, this is important for visualization in the multigraph
-            int color = (i_sipm - 65) % 65 + 1;
-            if (color == 10)
-                color = 11; // skip white color to better rappresentation
+                                       // this int assignes a different color to each graph based on the SIMP number, this is important for visualization in the multigraph
+
+            int idx = (i_sipm - 64);
+            float hue = (idx * 360.0) / 64.0; // we map the SIMP number to a hue value between 0 and 360
+            float saturation = 1.0;
+            float value = 0.85;
+            float r, g, b;
+            TColor::HSV2RGB(hue, saturation, value, r, g, b);
+            int color = TColor::GetColor(r, g, b); // we set a high saturation for better visibility
             graph->SetMarkerColor(color);
             graph->SetLineColor(color);
 
@@ -116,14 +128,15 @@ void FitAllHistos()
             TF1 *lineFit = new TF1(Form("lineFit_sipm%d", i_sipm), "pol1", 0, means.size() - 1);
             lineFit->SetLineColor(color);
             graph->Fit(lineFit, "RQ");
+            //
 
-            double slope = lineFit->GetParameter(1);
-            std::cout << "SiPM " << i_sipm << " slope = " << slope << std::endl;
+            slope.push_back(lineFit->GetParameter(1)); // we save the slope of the linear fit in the vector to have an idea of the distribution of the gains, this will help us when our data will be taken in a low gain mode, from this modality we expect the majority of the gains function to not follow the linear pattarn resulting in more complex situations once we starte the tracking with the fibers
 
-            double slopeMin = 200.0; // this values depends on the slopes so when we have a final range we change them, i've fixed the values from a poateriori analysis of thje graph
-            double slopeMax = 380.0;
+            std::cout << "SiPM " << i_sipm << " slope = " << slope.back() << std::endl;
 
-            if (slope >= slopeMin && slope <= slopeMax)
+            h_P1->Fill(slope.back());
+
+            if (slope.back() >= slopeMin && slope.back() <= slopeMax)
             {
                 mg_good->Add(graph);
                 leg_good->AddEntry(graph, Form("SiPM %d", i_sipm), "lp");
@@ -142,22 +155,18 @@ void FitAllHistos()
 
     } // end of the cicle for all the histograms
 
-    // Canvas e MultiGraph , TCanvas creates the final canvas wher 1400 e 800 are the dimensions of the canvas
+    // Canvas: the fisrt canvas is for the histogram of the gain distributions, while the other two are for the linear fit good vs bad
 
-    // TCanvas *c_all = new TCanvas("c_all", "All The SiPMs", 1400, 800);
-    //  since there are some channels that do not have five peaks we want to graph the one thata are good all toghter in one graph and put the ones that do not follow the linear andament in onether graph to avoid graphical curroption.
-    //  c_all->Divide(2, 2);
-
-    // c_all->cd(1);
-    // mg->Draw("AP"); // A stands for axis and P stands for points, this is important to draw the graph with the axes and the points, without this option the graph will be drawn without axes and it will be difficult to visualize the results
-    // leg->Draw();
-    // here we save the multigraph in the output file, this is important to have all the graphs in a single file for later visualization and analysis
-    // fileOut->cd();
-    // mg->Write("MultiGraph_allof_sipm");
-    // c_all->Write("Canvas_all_sipm");
+    TCanvas *c_dist = new TCanvas("c_dist", "Distribution of Gain Slopes (p1)", 800, 600);
+    c_dist->cd();
+    h_P1->SetLineColor(kBlue);
+    h_P1->SetFillColor(kCyan);
+    h_P1->Draw("HIST");
+    fileOut->cd();
+    h_P1->Write("h_P1");
 
     TCanvas *c_good = new TCanvas("c_good", "SiPM Buoni", 1400, 800);
-    mg_good->Draw("AP");
+    mg_good->Draw("AP"); // HIST stands for histogram, this is important to draw the graph with the histogram style, this will help us to visualize the distribution of the points and the fit line better, without this option the graph will be drawn with points and lines only and it can be difficult to visualize the results
     leg_good->Draw();
     fileOut->cd();
     mg_good->Write("MultiGraph_good");
@@ -171,9 +180,11 @@ void FitAllHistos()
     c_bad->Write("Canvas_bad");
 
     // we close the files in a clean way
+
     fileOut->Close();
     fileIn->Close();
 
     std::cout << "\n===== ANALISI COMPLETATA =====" << std::endl;
     std::cout << "Tutti i fit e i grafici sono stati salvati nel file: SiPM_FitResults.root" << std::endl;
 }
+// at this point we want to put all the slopes in a histogram to have an idea of the distribution of the gains, this will help us when our data will be taken in a low gain mode, from this modality we expect the majority of the gains function to not follow the linear pattarn resulting in more complex situations once we  starte the tracking with the fibers
