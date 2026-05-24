@@ -1,0 +1,11 @@
+I divided the giant macro FitAllHistos.C in three smallest macro. In that way, I think it's easier to run analyzation of 
+result because there is no useless info if I run one of these macro (for example if i have to write only the .txt file to 
+collect p1 and err_p1 values I don't need multigraph lines too). There is only one constrain: we must to run macro in 
+following steps:
+1. FitPeaks.C because this macro creates plots of gaussian fits on Charge histo 
+2. ExtractGains.C because this macro creates file.txt to collect p1 and p1 error and saves p1 plot 
+3. PlotMultiGraph.C because it opens .root file created in step one and checks good or bad p1 values from p1 plot saved by 
+   second step.
+Only last reccomandation: I took all codes from FitAllHistos.C macro created by us and separated each function, in last macro 
+I had to update last modification improved by Caterina in last lab session, so when Caterina will update her macro on GitHub,
+I will update last macro.
