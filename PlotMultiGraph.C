@@ -6,6 +6,17 @@
 #include <TString.h>
 #include <iostream>
 
+/* We define a struct to save data in first step. This is mandatory because we want analyze
+   a series of run and not a single one. The problem is that varying DAC values we vary the 
+   gain and so we vary the slopes, so we need to adapt the acceptance range accordingly.
+   A struct is a feature of C and C++ that allows us to group together different variables. */
+
+struct SiPMData{
+    int i_sipm;
+    TGraphErrors* graph;
+    double slopeValue;
+};
+
 void PlotMultiGraph(std::string numrun){
 
     // We verify for security that the number of run is correct printing in on console
@@ -30,25 +41,33 @@ void PlotMultiGraph(std::string numrun){
 
     TMultiGraph *mg_good = new TMultiGraph();
     
-    mg_good->SetTitle("Good SiPMs; Peak Number; Mean Charge [Units]");
+    mg_good->SetTitle(Form("Good SiPMs for run %s; Peak Number; Mean Charge [Units]", numrun.c_str()));
     
     TMultiGraph *mg_bad = new TMultiGraph();
     
-    mg_bad->SetTitle("Bad SiPMs; Peak Number; Mean Charge [Units]");
+    mg_bad->SetTitle(Form("Bad SiPMs for run %s; Peak Number; Mean Charge [Units]", numrun.c_str()));
 
     TLegend *leg_good = new TLegend(0.1, 0.1, 0.3, 0.9);
     
     TLegend *leg_bad = new TLegend(0.1, 0.1, 0.3, 0.9);
 
     /* At this point we want to put all the slopes in a histogram to have an idea of the 
-       distribution of the gains */
+       distribution of the gains. We set also the directory to visualize histogram. */
 
-    TH1D *h_P1 = new TH1D("h_P1", "Distribution of Gain Slopes (p1)", 100, 100, 400);
+    TH1D *h_P1 = new TH1D("h_P1", Form("Distribution of Gain for run %s", numrun.c_str()), 100, 100, 400);
+    h_P1->SetDirectory(0);
 
-    // This values depends on the slopes so when we have a final range we change them
+    // We define now a variable to store temporary the slope
+
+    vector<SiPMData> temp_list;
+    vector<double> slope;
+
+    /*/ This values depends on the slopes so when we have a final range we change them
     
     double slopeMin = 220.0; 
-    double slopeMax = 280.0;
+    double slopeMax = 280.0;*/
+
+    // Now we collect data and compute the slopes
 
     for (int i_sipm = 64; i_sipm <= 127; ++i_sipm) {
         
@@ -63,31 +82,72 @@ void PlotMultiGraph(std::string numrun){
                or bad */
 
             TF1 *lineFit = graph->GetFunction(Form("lineFit_sipm%d", i_sipm));
-            
-            double slope = 0;
 
             if (lineFit) {
-                slope = lineFit->GetParameter(1); // We extract the slope (gain) from the linear fit 
+                slope.push_back(lineFit->GetParameter(1)); // We extract the slope (gain) from the linear fit
+                h_P1->Fill(slope.back()); // We fill the histogram with the slope value
+                temp_list.push_back({i_sipm, graph, slope.back()}); // We 
+
             } else {
                 std::cerr << "Warning: Impossible to find linear fit function for SiPM " 
                           << i_sipm << std::endl;
                 continue;
             }
+        }
+    }
 
-            std::cout << "SiPM " << i_sipm << " slope = " << slope << std::endl;
+    //Now we compute dinamically for each run the acceptance range 
 
-            h_P1->Fill(slope);
+    /* We consider as good SiPMs those with slope within 2 standard deviations from the mean,
+      and as bad SiPMs those with slope outside this range */
+            
+    int maxBin = h_P1->GetMaximumBin();
+    double PeakCenter = h_P1->GetBinCenter(maxBin);
+    double PeakSigma = h_P1->GetRMS();
+    double slopeMin = PeakCenter - 2 * PeakSigma;
+    double slopeMax = PeakCenter + 2 * PeakSigma;
 
-            if (slope >= slopeMin && slope <= slopeMax)
-            {
-                mg_good->Add(graph);
-                leg_good->AddEntry(graph, Form("SiPM %d", i_sipm), "lp");
-            }
-            else
-            {
-                mg_bad->Add(graph);
-                leg_bad->AddEntry(graph, Form("SiPM %d", i_sipm), "lp");
-            }
+    // We now fill the multigraphs separating good and bad SiPMs
+    for (const auto& data : temp_list) {
+        int i_sipm = data.i_sipm;
+        TGraphErrors* graph = data.graph;
+        double slopeValue = data.slopeValue;
+        TF1 *lineFit = graph->GetFunction(Form("lineFit_sipm%d", i_sipm));
+
+        /* In next lines we define multigraph and graphics logic in order to have a better
+            visualization of the data and of the results */
+
+        graph->SetMarkerStyle(21); // <-- We set the marker style
+            
+        // We set different colors from HSV map
+
+        int idx = (i_sipm -64);
+        float hue = (idx * 360.0) / 64.0; // Map index to hue (0-360)
+        float saturation = 1.0;
+        float value = 0.85;
+        float r, g, b;
+        TColor::HSV2RGB(hue, saturation, value, r, g, b);
+        int color = TColor::GetColor(r, g, b);
+
+        // We set the color of the graph
+
+        graph->SetLineColor(color);
+        graph->SetMarkerColor(color);
+        lineFit->SetLineColor(color);
+
+        std::cout << "SiPM " << i_sipm << " slope = " << slopeValue << std::endl;
+
+        //h_P1->Fill(slope.back());
+
+        if (slopeValue >= slopeMin && slopeValue <= slopeMax)
+        {
+            mg_good->Add(graph);
+            leg_good->AddEntry(graph, Form("SiPM %d", i_sipm), "lp");
+        }
+        else if (slopeValue < slopeMin || slopeValue > slopeMax)
+        {
+            mg_bad->Add(graph);
+            leg_bad->AddEntry(graph, Form("SiPM %d", i_sipm), "lp");
         }
     }
 
@@ -96,17 +156,16 @@ void PlotMultiGraph(std::string numrun){
     
     // Canvas 1: Histogram of Gain Slopes
 
-    TCanvas *c_dist = new TCanvas("c_dist", "Distribution of Gain Slopes (p1)", 800, 600);
+    TCanvas *c_dist = new TCanvas("c_dist", Form("Distribution of Gain for run %s", numrun.c_str()), 800, 600);
     c_dist->cd();
     h_P1->SetLineColor(kBlue);
-    h_P1->SetFillColor(kCyan);
     h_P1->Draw("HIST");
     fileOut->cd();
     h_P1->Write("h_P1");
 
     // Canvas 2: Good SiPMs
     
-    TCanvas *c_good = new TCanvas("c_good", "SiPM Buoni", 1400, 800);
+    TCanvas *c_good = new TCanvas("c_good", Form("Good SiPMs for run %s", numrun.c_str()), 1400, 800);
     
     // Check to avoid crash if mg_good is empty
 
@@ -120,7 +179,7 @@ void PlotMultiGraph(std::string numrun){
 
     // Canvas 3: Bad SiPMs
 
-    TCanvas *c_bad = new TCanvas("c_bad", "SiPM Fuori Range", 1400, 800);
+    TCanvas *c_bad = new TCanvas("c_bad", Form("Bad SiPMs for run %s", numrun.c_str()), 1400, 800);
     
     // Check to avoid crash if mg_bad is empty
     
