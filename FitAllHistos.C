@@ -32,7 +32,8 @@ void FitAllHistos()
 
     std::vector<double> slope; // <-- vector to store the slope(p1) values
 
-    TH1D *h_P1 = new TH1D("h_P1", "Distribution of Gain Slopes (p1)", 100, 100, 400);
+    TH1D *h_P1 = new TH1D("h_P1", "Distribution of Gain Slopes (p1)", 32, 200, 300);
+    h_P1->SetDirectory(0); // we set the directory to 0 to avoid that the histogram is automatically saved in the output file, this is important because we want to save the histogram only at the end of the analysis when we have all the data and we want to avoid that the histogram is saved multiple times during the analysis which can cause confusion when we want to visualize the results later
 
     double slopeMin = 220.0; // this values depends on the slopes so when we have a final range we change them, i've fixed the values from a poateriori analysis of thje graph
     double slopeMax = 280.0;
@@ -160,8 +161,8 @@ void FitAllHistos()
     TCanvas *c_dist = new TCanvas("c_dist", "Distribution of Gain Slopes (p1)", 800, 600);
     c_dist->cd();
     h_P1->SetLineColor(kBlue);
-    h_P1->SetFillColor(kCyan);
     h_P1->Draw("HIST");
+
     fileOut->cd();
     h_P1->Write("h_P1");
 
