@@ -151,7 +151,7 @@ void PlotMultiGraph(std::string numrun){
         }
     }
 
-    TString fileOutName = Form("/home/emanuele/Universita/Paprica 2.9/Dataset/Fit_Data/SiPM_MultiGraph_run_%s.root", numrun.c_str());
+    TString fileOutName = Form("/home/emanuele/Universita/Paprica 2.9/Dataset/MultiGraph/SiPM_MultiGraph_run_%s.root", numrun.c_str());
     TFile *fileOut = new TFile(fileOutName, "RECREATE");
     
     // Canvas 1: Histogram of Gain Slopes

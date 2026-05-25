@@ -97,7 +97,16 @@ void FitPeaks(std::string numrun) {
             graph->SetName(Form("gain_graph_isipm%d", i_sipm));
             graph->SetTitle(Form("SiPM %d", i_sipm));
             
-            int color = (i_sipm - 64) % 64 + 1;
+            //int color = (i_sipm - 64) % 64 + 1;
+            // We set different colors from HSV map
+
+            int idx = (i_sipm -64);
+            float hue = (idx * 360.0) / 64.0; // Map index to hue (0-360)
+            float saturation = 1.0;
+            float value = 0.85;
+            float r, g, b;
+            TColor::HSV2RGB(hue, saturation, value, r, g, b);
+            int color = TColor::GetColor(r, g, b);
             graph->SetMarkerColor(color);
             graph->SetLineColor(color);
             graph->SetMarkerStyle(21);
