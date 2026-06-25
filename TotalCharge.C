@@ -112,9 +112,9 @@ void TotalCharge(const vector<TString>& myfile, const string& Constraint = "") {
                         h2D->Draw("COLZ text");
                         cDisplay->Update();
 
-                        cout << "Press [ENTER] to continue" << endl;
-                        string stop;
-                        getline(cin, stop);
+                        //cout << "Press [ENTER] to continue" << endl;
+                        //string stop;
+                        //getline(cin, stop);
 
                         delete cDisplay;
                     }
