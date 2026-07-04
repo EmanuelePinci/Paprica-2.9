@@ -25,7 +25,7 @@ Double_t langaufun(Double_t *x, Double_t *par) {
     Double_t InvSqrt2Pi = 0.39894228040143;
     Double_t mpshift  = -0.22278298;
 
-    Double_t np = 100.0;      // Step di integrazione numerica
+    Double_t np = 1000.0;      // Step di integrazione numerica
     Double_t sc =   5.0;      // Estensione dell'integrazione in unità di sigma gaussiana
 
     Double_t xx = x[0];
@@ -224,8 +224,8 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
     double integral_1 = hthr->Integral() * hthr->GetBinWidth(1);   // Area reale sotto la curva                                           
 
     // Impostiamo il range del fit visivo (dal grafico si vede che la struttura è tra 130 e 350)                                               
-    double fit_min_1 = 130.0;
-    double fit_max_1 = 350.0;
+    double fit_min_1 = 100.0;
+    double fit_max_1 = 380.0;
 
     // Creiamo il TF1 puntando alla funzione definita sopra (4 parametri)
     TF1 *fLangau_1 = new TF1("fLangau_1", langaufun, fit_min_1, fit_max_1, 4);
@@ -235,18 +235,18 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
     fLangau_1->SetParameter(0, 10.0);           // Stima iniziale Landau Sigma                                                                   
     fLangau_1->SetParameter(1, max_bin_center_1);  // Posiziona il MPV esattamente sul picco
     fLangau_1->SetParameter(2, integral_1);        // Normalizzazione basata sull'area reale                                                       
-    fLangau_1->SetParameter(3, 11.0);           // Risoluzione gaussiana stimata dallo screenshot
+    fLangau_1->SetParameter(3, 15.0);
 
     // Limiti di sicurezza per impedire ai parametri di convergere a valori assurdi o negativi
-    fLangau_1->SetParLimits(0, 2.0, 25.0);
-    fLangau_1->SetParLimits(1, 175.0, 205.0);
-    fLangau_1->SetParLimits(3, 3.0, 25.0);
+    fLangau_1->SetParLimits(0, 2.0, 30.0);
+    fLangau_1->SetParLimits(1, 160.0, 210.0);
+    fLangau_1->SetParLimits(3, 3.0, 60.0);
 
     fLangau_1->SetLineColor(kRed + 1);
     fLangau_1->SetLineWidth(2);
 
     // Eseguiamo il fit con l'opzione "R" (Range) e "B" (usa i limiti impostati)
-    htc->Fit(fLangau_1, "RB");
+    htc->Fit(fLangau_1, "RBI");
 
     // Ora gli errori saranno perfettamente calcolati!
     double MPV_measured_1 = fLangau_1->GetParameter(1);
@@ -265,18 +265,18 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
     
 
     // Creiamo la linea: TLine(x1, y1, x2, y2)
-    TLine *lineMPV_1 = new TLine(mpv_fit_1, 0, mpv_fit_1, y_max_1);
+    //    TLine *lineMPV_1 = new TLine(mpv_fit_1, 0, mpv_fit_1, y_max_1);
 
     // Stile della linea
-    lineMPV_1->SetLineColor(kRed + 2); // Rosso scuro, coerente con il fit ma distinguibile
-    lineMPV_1->SetLineStyle(2);        // Codice 2 = Tratteggiato (dashed)
-    lineMPV_1->SetLineWidth(2);        // Spessore della linea
+    //lineMPV_1->SetLineColor(kRed + 2); // Rosso scuro, coerente con il fit ma distinguibile
+    //lineMPV_1->SetLineStyle(2);        // Codice 2 = Tratteggiato (dashed)
+    //lineMPV_1->SetLineWidth(2);        // Spessore della linea
 
     // 2. Linea per il Picco Apparente (Strumentale) - Blu puntinata
-    TLine *lineVisivo = new TLine(mpv_visivo_1, 0, mpv_visivo_1, y_max_1);
-    lineVisivo->SetLineColor(kBlue + 1);
-    lineVisivo->SetLineStyle(3); // 3 = Puntinata
-    lineVisivo->SetLineWidth(2);
+    //TLine *lineVisivo = new TLine(mpv_visivo_1, 0, mpv_visivo_1, y_max_1);
+    //lineVisivo->SetLineColor(kBlue + 1);
+    //lineVisivo->SetLineStyle(3); // 3 = Puntinata
+    //lineVisivo->SetLineWidth(2);
 
 
 
@@ -291,8 +291,8 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
     lat1.DrawLatex(0.15, 0.80, Form("Bin Width: %.2f PHE", htc->GetBinWidth(1)));
     htc->Draw("hist same"); 
     fLangau_1->Draw("same");
-    lineVisivo->Draw("same");   // Retta strumentale
-    lineMPV_1->Draw("same");      // Linea verticale tratteggiata dell'MPV
+    //    lineVisivo->Draw("same");   // Retta strumentale
+    //lineMPV_1->Draw("same");      // Linea verticale tratteggiata dell'MPV
     ctc->Update();    
 
     cRMS->cd();
@@ -320,23 +320,23 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
         double integral        = hthr->Integral() * hthr->GetBinWidth(1);   // Area reale sotto la curva
 
         // Impostiamo il range del fit visivo (dal grafico si vede che la struttura è tra 130 e 350)
-        double fit_min = 130.0;
-        double fit_max = 350.0;
+        double fit_min = 100.0;
+        double fit_max = 380.0;
 
         // Creiamo il TF1 puntando alla funzione definita sopra (4 parametri)
         TF1 *fLangau = new TF1("fLangau", langaufun, fit_min, fit_max, 4);
         fLangau->SetParNames("LandauSigma", "LandauMPV", "Area", "GaussSigma");
 
         // VALORI INIZIALI GUIDATI (Fondamentali per MINUIT)
-        fLangau->SetParameter(0, 10.0);           // Stima iniziale Landau Sigma
+        fLangau->SetParameter(0, 5.0);           // Stima iniziale Landau Sigma
         fLangau->SetParameter(1, max_bin_center);  // Posiziona il MPV esattamente sul picco
         fLangau->SetParameter(2, integral);        // Normalizzazione basata sull'area reale
-        fLangau->SetParameter(3, 11.0);           // Risoluzione gaussiana stimata dallo screenshot
+        fLangau->SetParameter(3, 30.0);           // Risoluzione gaussiana stimata dallo screenshot
 
         // Limiti di sicurezza per impedire ai parametri di convergere a valori assurdi o negativi
-        fLangau->SetParLimits(0, 2.0, 25.0);
-        fLangau->SetParLimits(1, 175.0, 205.0);
-        fLangau->SetParLimits(3, 3.0, 25.0);
+        fLangau->SetParLimits(0, 0.5, 30.0);
+        fLangau->SetParLimits(1, 150.0, 220.0);
+        fLangau->SetParLimits(3, 10.0, 60.0);
 
         fLangau->SetLineColor(kRed + 1);
         fLangau->SetLineWidth(2);
@@ -344,44 +344,42 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
         // Eseguiamo il fit con l'opzione "R" (Range) e "B" (usa i limiti impostati)
         hthr->Fit(fLangau, "RB");
 
-        // Ora gli errori saranno perfettamente calcolati!
-        double MPV_measured = fLangau->GetParameter(1);
-        double MPV_measured_err = fLangau->GetParError(1);
+	// =================== ESTRAZIONE DEL PICCO REALE =========================
+        // Troviamo il massimo della funzione convoluta all'interno del range di fit
+        double MPV_measured = fLangau->GetMaximumX(fit_min, fit_max);
+        
+        // L'errore è la radice quadrata della larghezza del bin
+        double MPV_measured_err = TMath::Sqrt(hthr->GetBinWidth(1));
         
         cout << "----------------------------------------" << endl;
         cout << "  Langau Fit Concluso Con Successo!" << endl;
-        cout << "  MPV misurato = " << MPV_measured << " +/- " << MPV_measured_err << " PHE" << endl;
+        cout << "  Picco Funzione = " << MPV_measured << " +/- " << MPV_measured_err << " PHE" << endl;
         cout << "----------------------------------------\n" << endl;
 
-        
         // =================== PUNTO + ERRORE TEORICO =========================
         double y_max = hthr->GetMaximum();
-        double y_pos = y_max * 0.5; // Posizioniamo il punto a metà altezza del grafico per visibilità
+        double y_pos = y_max * 0.5; 
         
-        // Creiamo un grafico con 1 punto: X = NPHE, Y = y_pos, Errore X = NPHE_err, Errore Y = 0
         TGraphErrors *gTheory = new TGraphErrors(1);
         gTheory->SetPoint(0, NPHE, y_pos);
         gTheory->SetPointError(0, NPHE_err, 0.0);
         
-        // Stile del punto e della barra di errore
-        gTheory->SetMarkerStyle(20);        // Cerchio pieno
-        gTheory->SetMarkerSize(1.2);       // Dimensione punto
-        gTheory->SetMarkerColor(kGreen+2);  // Colore del punto
-        gTheory->SetLineColor(kGreen+2);    // Colore della barra d'errore
-        gTheory->SetLineWidth(2);           // Spessore barra
+        gTheory->SetMarkerStyle(20);        
+        gTheory->SetMarkerSize(1.2);       
+        gTheory->SetMarkerColor(kGreen+2);  
+        gTheory->SetLineColor(kGreen+2);    
+        gTheory->SetLineWidth(2);           
 
 	// =================== LINEA VERTICALE PER MPV FIT =========================
-        double mpv_fit = fLangau->GetParameter(1); // Estrae il valore del picco trovato (184.2)
-        double y_max_2 = hthr->GetMaximum() * 1.05;  // Prende l'altezza massima dell'istogramma + 5% di margine
+        double y_max_2 = y_max * 1.05; 
 
-        // Creiamo la linea: TLine(x1, y1, x2, y2)
-        TLine *lineMPV = new TLine(mpv_fit, 0, mpv_fit, y_max_2);
+        // Creiamo la linea usando il massimo della funzione (MPV_measured) e non il parametro
+        TLine *lineMPV = new TLine(MPV_measured, 0, MPV_measured, y_max_2);
         
-        // Stile della linea
-        lineMPV->SetLineColor(kRed + 2); // Rosso scuro, coerente con il fit ma distinguibile
-        lineMPV->SetLineStyle(2);        // Codice 2 = Tratteggiato (dashed)
-        lineMPV->SetLineWidth(2);        // Spessore della linea
-
+        lineMPV->SetLineColor(kRed + 2); 
+        lineMPV->SetLineStyle(2);        
+        lineMPV->SetLineWidth(2);
+	
 	// =================== LEGENDA OTTIMIZZATA =========================
         // Coordinate ottimizzate per posizionarla bene sotto il box statistico
 	TLegend *leg = new TLegend(0.60, 0.20, 0.90, 0.35);
@@ -392,14 +390,13 @@ void AnaCharge(const vector<TString>& myfile, const string& Constraint = "") {
         leg->SetTextSize(0.035);          // Dimensione del testo in armonia con lo stat box
 
         // Aggiungiamo l'entry con i valori aggiornati, usando "#pm" per il simbolo ±
-        leg->AddEntry(gTheory, Form("Theory MPV: %.1f #pm %.1f PHE", NPHE, NPHE_err), "pe");
+        leg->AddEntry(gTheory, "Theory MPV" , "l");
 
         // Consiglio: se in futuro vorrai aggiungere anche i dati e il fit, ti basterà decommentare queste:
         // leg->AddEntry(hthr, Form("Data (%zu runs)", myfile.size()), "l"); 
         leg->AddEntry(fLangau, "Langau Fit", "l");
 	// Aggiungiamo anche la linea nella legenda per renderla perfetta
-        leg->AddEntry(lineMPV, Form("Fit MPV: %.1f PHE", mpv_fit), "l");
-	
+	leg->AddEntry(lineMPV, "Fit Peak", "l");
         cthr->cd();
 
         // 1. Disegna l'istogramma dati
